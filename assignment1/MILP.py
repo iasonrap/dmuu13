@@ -60,7 +60,7 @@ def electrolyzer_constraint_rule(m, t):
 model.electrolyzer_constraint = Constraint(model.T, rule=electrolyzer_constraint_rule)
 
 # Solve model
-solver = SolverFactory('glpk')
+solver = SolverFactory('gurobi')
 solver.solve(model)
 
 # Extract results
