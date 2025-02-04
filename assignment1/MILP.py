@@ -20,7 +20,7 @@ model.e = Var(model.T, within=Binary)
 model.p2h = Var(model.T, within=NonNegativeReals, bounds=(0, params['p2h_rate']))
 model.h = Var(model.T, within=NonNegativeReals, bounds=(0, params['hydrogen_capacity']))
 model.h2p = Var(model.T, within=NonNegativeReals, bounds=(0, params['h2p_rate']))
-model.g = Var(model.T, within=NonNegativeReals)
+model.g = Var(model.T, within=NonNegativeReals, bounds=(0, max(params['demand_schedule'])))  # Upper bound to avoid infeasibility
 
 # Initialize wind and price time series
 wind_trajectory = [params['target_mean_wind']]
@@ -40,7 +40,7 @@ model.obj = Objective(rule=objective_rule, sense=minimize)
 def energy_balance_rule(m, t):
     demand = params['demand_schedule'][t]
     wind_power = wind_trajectory[t]
-    return demand == wind_power + m.h2p[t] + m.g[t] - m.p2h[t]
+    return demand <= wind_power + m.h2p[t] + m.g[t] - m.p2h[t]  # Relaxed constraint to ensure feasibility
 
 model.energy_balance = Constraint(model.T, rule=energy_balance_rule)
 
@@ -58,6 +58,12 @@ def electrolyzer_constraint_rule(m, t):
     return m.p2h[t] <= m.e[t] * params['p2h_rate']
 
 model.electrolyzer_constraint = Constraint(model.T, rule=electrolyzer_constraint_rule)
+
+# Ensure hydrogen storage remains non-negative
+def hydrogen_non_negative_rule(m, t):
+    return m.h[t] >= 0
+
+model.hydrogen_non_negative = Constraint(model.T, rule=hydrogen_non_negative_rule)
 
 # Solve model
 solver = SolverFactory('gurobi')
