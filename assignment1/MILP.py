@@ -16,10 +16,10 @@ model = ConcreteModel()
 model.T = RangeSet(0, T-1)
 
 # Decision variables
-model.x = Var(model.T, within=Binary)
+model.e = Var(model.T, within=Binary)
 model.p2h = Var(model.T, within=NonNegativeReals, bounds=(0, params['p2h_rate']))
 model.h = Var(model.T, within=NonNegativeReals, bounds=(0, params['hydrogen_capacity']))
-model.p_h2p = Var(model.T, within=NonNegativeReals, bounds=(0, params['h2p_rate']))
+model.h2p = Var(model.T, within=NonNegativeReals, bounds=(0, params['h2p_rate']))
 model.g = Var(model.T, within=NonNegativeReals)
 
 # Initialize wind and price time series
@@ -32,7 +32,7 @@ for t in range(1, T):
 
 # Objective function: Minimize cost
 def objective_rule(m):
-    return sum(m.g[t] * price_trajectory[t] + m.x[t] * params['electrolyzer_cost'] for t in m.T)
+    return sum(m.g[t] * price_trajectory[t] + m.e[t] * params['electrolyzer_cost'] for t in m.T)
 
 model.obj = Objective(rule=objective_rule, sense=minimize)
 
@@ -40,22 +40,22 @@ model.obj = Objective(rule=objective_rule, sense=minimize)
 def energy_balance_rule(m, t):
     demand = params['demand_schedule'][t]
     wind_power = wind_trajectory[t]
-    return demand == wind_power + m.p_h2p[t] + m.g[t] - m.p2h[t]
+    return demand == wind_power + m.h2p[t] + m.g[t] - m.p2h[t]
 
 model.energy_balance = Constraint(model.T, rule=energy_balance_rule)
 
 # Hydrogen storage dynamics
 def hydrogen_storage_rule(m, t):
     if t == 0:
-        return m.h[t] == params['conversion_p2h'] * m.p2h[t] - params['conversion_h2p'] * m.p_h2p[t]
+        return m.h[t] == params['conversion_p2h'] * m.p2h[t] - params['conversion_h2p'] * m.h2p[t]
     else:
-        return m.h[t] == m.h[t-1] + params['conversion_p2h'] * m.p2h[t] - params['conversion_h2p'] * m.p_h2p[t]
+        return m.h[t] == m.h[t-1] + params['conversion_p2h'] * m.p2h[t] - params['conversion_h2p'] * m.h2p[t]
 
 model.hydrogen_storage = Constraint(model.T, rule=hydrogen_storage_rule)
 
 # Electrolyzer ON constraint
 def electrolyzer_constraint_rule(m, t):
-    return m.p2h[t] <= m.x[t] * params['p2h_rate']
+    return m.p2h[t] <= m.e[t] * params['p2h_rate']
 
 model.electrolyzer_constraint = Constraint(model.T, rule=electrolyzer_constraint_rule)
 
@@ -67,9 +67,9 @@ solver.solve(model)
 results = {
     'grid_power': [model.g[t].value for t in model.T],
     'power_to_hydrogen': [model.p2h[t].value for t in model.T],
-    'hydrogen_to_power': [model.p_h2p[t].value for t in model.T],
+    'hydrogen_to_power': [model.h2p[t].value for t in model.T],
     'hydrogen_storage_level': [model.h[t].value for t in model.T],
-    'electrolyzer_status': [model.x[t].value for t in model.T],
+    'electrolyzer_status': [model.e[t].value for t in model.T],
 }
 
 # Plot results using Plots.py structure
