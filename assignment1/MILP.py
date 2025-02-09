@@ -20,7 +20,7 @@ model.e = Var(model.T, within=Binary)
 model.p2h = Var(model.T, within=NonNegativeReals, bounds=(0, params['p2h_rate']))
 model.h = Var(model.T, within=NonNegativeReals, bounds=(0, params['hydrogen_capacity']))
 model.h2p = Var(model.T, within=NonNegativeReals, bounds=(0, params['h2p_rate']))
-model.g = Var(model.T, within=NonNegativeReals, bounds=(0, max(params['demand_schedule'])))  # Upper bound to avoid infeasibility
+model.g = Var(model.T, within=NonNegativeReals)
 
 # Initialize wind and price time series
 wind_trajectory = [params['target_mean_wind']]
@@ -30,40 +30,58 @@ for t in range(1, T):
     wind_trajectory.append(WindProcess.wind_model(wind_trajectory[-1], wind_trajectory[-2] if t > 1 else wind_trajectory[-1], params))
     price_trajectory.append(PriceProcess.price_model(price_trajectory[-1], price_trajectory[-2] if t > 1 else price_trajectory[-1], wind_trajectory[-1], params))
 
-# Objective function: Minimize cost
+# Objective function: Minimize total cost
 def objective_rule(m):
     return sum(m.g[t] * price_trajectory[t] + m.e[t] * params['electrolyzer_cost'] for t in m.T)
 
 model.obj = Objective(rule=objective_rule, sense=minimize)
 
-# Constraints
+# Power balance constraint
 def energy_balance_rule(m, t):
-    demand = params['demand_schedule'][t]
-    wind_power = wind_trajectory[t]
-    return demand <= wind_power + m.h2p[t] + m.g[t] - m.p2h[t]  # Relaxed constraint to ensure feasibility
+    return m.g[t] + wind_trajectory[t] + params['conversion_h2p'] * m.h2p[t] == params['demand_schedule'][t] + m.p2h[t]
 
 model.energy_balance = Constraint(model.T, rule=energy_balance_rule)
 
-# Hydrogen storage dynamics
+# Hydrogen balance constraint
 def hydrogen_storage_rule(m, t):
     if t == 0:
-        return m.h[t] == params['conversion_p2h'] * m.p2h[t] - params['conversion_h2p'] * m.h2p[t]
+        return m.h[t] == params['conversion_p2h'] * m.p2h[t] - m.h2p[t]
     else:
-        return m.h[t] == m.h[t-1] + params['conversion_p2h'] * m.p2h[t] - params['conversion_h2p'] * m.h2p[t]
+        return m.h[t] == m.h[t-1] + params['conversion_p2h'] * m.p2h[t] - m.h2p[t]
 
 model.hydrogen_storage = Constraint(model.T, rule=hydrogen_storage_rule)
 
-# Electrolyzer ON constraint
-def electrolyzer_constraint_rule(m, t):
-    return m.p2h[t] <= m.e[t] * params['p2h_rate']
+# Electrolyzer capacity constraint
+def electrolyzer_capacity_rule(m, t):
+    return m.p2h[t] <= params['p2h_rate'] * m.e[t]
 
-model.electrolyzer_constraint = Constraint(model.T, rule=electrolyzer_constraint_rule)
+model.electrolyzer_capacity = Constraint(model.T, rule=electrolyzer_capacity_rule)
 
-# Ensure hydrogen storage remains non-negative
-def hydrogen_non_negative_rule(m, t):
-    return m.h[t] >= 0
+# Hydrogen-to-power conversion constraint
+def hydrogen_to_power_capacity_rule(m, t):
+    return m.h2p[t] <= params['h2p_rate']
 
-model.hydrogen_non_negative = Constraint(model.T, rule=hydrogen_non_negative_rule)
+model.hydrogen_to_power_capacity = Constraint(model.T, rule=hydrogen_to_power_capacity_rule)
+
+# Hydrogen storage capacity constraint
+def hydrogen_storage_capacity_rule(m, t):
+    return m.h[t] <= params['hydrogen_capacity']
+
+model.hydrogen_storage_capacity = Constraint(model.T, rule=hydrogen_storage_capacity_rule)
+
+# Electrolyzer ON/OFF constraint
+def electrolyzer_on_off_rule1(m, t):
+    if t == 0:
+        return Constraint.Skip
+    return m.e[t] - m.e[t-1] <= 1
+
+def electrolyzer_on_off_rule2(m, t):
+    if t == 0:
+        return Constraint.Skip
+    return m.e[t-1] - m.e[t] <= 1
+
+model.electrolyzer_on_off1 = Constraint(model.T, rule=electrolyzer_on_off_rule1)
+model.electrolyzer_on_off2 = Constraint(model.T, rule=electrolyzer_on_off_rule2)
 
 # Solve model
 solver = SolverFactory('gurobi')
@@ -118,7 +136,7 @@ plt.ylabel("Grid Power")
 plt.legend()
 
 plt.subplot(8, 1, 8)
-plt.plot(times, price_trajectory, label="price", color="red")
+plt.plot(times, price_trajectory, label="Price", color="red")
 plt.ylabel("Price")
 plt.xlabel("Time")
 plt.legend()
