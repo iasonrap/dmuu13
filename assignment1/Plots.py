@@ -3,7 +3,7 @@
 Created on Sat Dec 28 12:59:29 2024
 
 @author: geots
-"""
+""" 
 
 
 import data

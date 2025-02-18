@@ -1,12 +1,13 @@
 import numpy as np
 import matplotlib.pyplot as plt
 import data
+import v2_data
 import WindProcess
 import PriceProcess
 from pyomo.environ import *
 
 # Load fixed data
-params = data.get_fixed_data()
+params = v2_data.get_fixed_data()
 T = params['num_timeslots']
 
 # Initialize Pyomo model
