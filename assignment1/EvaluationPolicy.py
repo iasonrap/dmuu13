@@ -1,6 +1,7 @@
 import numpy as np
 import matplotlib.pyplot as plt
 import data
+import v2_data
 import WindProcess
 import PriceProcess
 from pyomo.environ import *
@@ -10,7 +11,7 @@ def evaluate_policy(policy, E=20, H=24):
         E (int): Number of independent experiments (days).
         H (int): Number of time steps per experiment (hours in a day).
     """
-    params = data.get_fixed_data()
+    params = v2_data.get_fixed_data()
     cost_results = []
 
     for _ in range(E):

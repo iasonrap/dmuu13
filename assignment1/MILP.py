@@ -1,12 +1,13 @@
 import numpy as np
 import matplotlib.pyplot as plt
 import data
+import v2_data
 import WindProcess
 import PriceProcess
 from pyomo.environ import *
 
 # Load fixed data
-params = data.get_fixed_data()
+params = v2_data.get_fixed_data()
 T = params['num_timeslots']
 
 # Initialize Pyomo model
@@ -17,9 +18,9 @@ model.T = RangeSet(0, T-1)
 
 # Decision variables
 model.e = Var(model.T, within=Binary)
-model.p2h = Var(model.T, within=NonNegativeReals, bounds=(0, params['p2h_rate']))
+model.p2h = Var(model.T, within=NonNegativeReals, bounds=(0, params['p2h_max_rate']))
 model.h = Var(model.T, within=NonNegativeReals, bounds=(0, params['hydrogen_capacity']))
-model.h2p = Var(model.T, within=NonNegativeReals, bounds=(0, params['h2p_rate']))
+model.h2p = Var(model.T, within=NonNegativeReals, bounds=(0, params['h2p_max_rate']))
 model.g = Var(model.T, within=NonNegativeReals)
 
 # Initialize wind and price time series
@@ -53,13 +54,13 @@ model.hydrogen_storage = Constraint(model.T, rule=hydrogen_storage_rule)
 
 # Electrolyzer capacity constraint
 def electrolyzer_capacity_rule(m, t):
-    return m.p2h[t] <= params['p2h_rate'] * m.e[t]
+    return m.p2h[t] <= params['p2h_max_rate'] * m.e[t]
 
 model.electrolyzer_capacity = Constraint(model.T, rule=electrolyzer_capacity_rule)
 
 # Hydrogen-to-power conversion constraint
 def hydrogen_to_power_capacity_rule(m, t):
-    return m.h2p[t] <= params['h2p_rate']
+    return m.h2p[t] <= params['h2p_max_rate']
 
 model.hydrogen_to_power_capacity = Constraint(model.T, rule=hydrogen_to_power_capacity_rule)
 
