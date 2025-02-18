@@ -6,7 +6,7 @@ import PriceProcess
 from pyomo.environ import *
 
 
-def evaluate_policy(policy, E=100, T=24):
+def evaluate_policy(policy, E=20, T=24):
     """
     Parameters:
         E (int): Number of independent experiments (days).
@@ -59,5 +59,5 @@ def dummy_policy(t, state, params):
 
 
 if __name__ == "__main__":
-    avg_cost = evaluate_policy(dummy_policy, E=100, T=24)
+    avg_cost = evaluate_policy(dummy_policy, E=20, T=24)
     print(f"Average cost with dummy policy: {avg_cost:.2f}")
