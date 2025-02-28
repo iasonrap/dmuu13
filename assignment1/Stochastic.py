@@ -60,7 +60,7 @@ def stochastic_optimization_policy(state, params):
     print(
         f"  - Hydrogen to Power: {h2p} MW (Hydrogen used for power generation, depends on storage and electricity price)")
     print(f"  - Grid Power Draw: {g} MW (Power drawn from the grid to meet remaining demand if necessary)")
-    return e_next, p2h, h2p, g
+    return wind_power,e_next, p2h, h2p, g
 
 
 if __name__ == "__main__":
@@ -68,4 +68,4 @@ if __name__ == "__main__":
     state = (2.5, 0, 10, 30)
     params = data.get_fixed_data()
     decision = stochastic_optimization_policy(state, params)
-    #print(f"\nFinal Decision Output (Tuple Format): {decision}")
+    print(f"\nFinal Decision Output (Tuple Format): {decision}")
