@@ -39,7 +39,10 @@ def evaluate_policy(policy, E=20, H=24):
             decisions = policy(state, params)
 
             # Unpack policy decisions
-            e_next, p2h, h2p, grid_power = decisions
+            if len(decisions) == 5:  # If 5 values are returned, ignore the first one
+                _, e_next, p2h, h2p, grid_power = decisions
+            else:
+                e_next, p2h, h2p, grid_power = decisions
 
             # Check and correct decisions if inconsistent
             if p2h < 0: p2h = 0
